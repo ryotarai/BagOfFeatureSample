@@ -35,7 +35,7 @@ private:
 
     void readImages(QString &dir, vector<Mat> &imgs);
     void readImages(QDir &dir, vector<Mat> &imgs);
-    void train(BOWTrainer &trainer, const vector<Mat> trainer_imgs);
+    void train(BOWTrainer &trainer, const QString &dir_path);
     void getDescriptors(const Mat &img, Mat &descriptors);
     void extractDescriptor(const Mat &vocabulary, const vector<Mat> target_imgs, Mat &descriptors);
     void saveKmeansResult(const Mat &labels, const vector<Mat> &images, const QString &saveDir, const int cluster_count);

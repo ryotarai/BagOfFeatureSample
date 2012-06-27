@@ -8,8 +8,8 @@
 #include <opencv2/nonfree/features2d.hpp>
 
 
-const int BOW_CLUSTER_COUNT = 16;
-const int KMEANS_CLUSTER_COUNT = 3;
+const int BOW_CLUSTER_COUNT = 1024;
+const int KMEANS_CLUSTER_COUNT = 8;
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -52,6 +52,8 @@ void MainWindow::readImages(QString &dir, vector<Mat> &imgs)
 
 void MainWindow::readImages(QDir &dir, vector<Mat> &imgs)
 {
+    qDebug() << "loading images...";
+
     imgs.clear();
 
     QStringList image_name_filter;
@@ -69,14 +71,22 @@ void MainWindow::readImages(QDir &dir, vector<Mat> &imgs)
 }
 
 
-void MainWindow::train(BOWTrainer &trainer, const vector<Mat> trainer_imgs)
+void MainWindow::train(BOWTrainer &trainer, const QString &dir_path)
 {
-    vector<Mat>::const_iterator it = trainer_imgs.begin();
-    int i = 0;
-    for (; it != trainer_imgs.end(); it++) {
-        qDebug() << "adding descriptor to trainer... " << i + 1;
+    QDir dir(dir_path);
 
-        Mat img = *it;
+    int i = 0;
+    QStringList image_name_filter;
+    image_name_filter << "*.png" << "*.jpg";
+    QStringList entries = dir.entryList(image_name_filter);
+
+    QStringList::Iterator it = entries.begin();
+    for (; it != entries.end(); it++) {
+        qDebug() << "adding to BOW trainer... " << i + 1;
+        QString filename = *it;
+        QString filepath = dir.filePath(filename);
+
+        Mat img = imread(filepath.toStdString());
         Mat descriptors;
         getDescriptors(img, descriptors);
 
@@ -172,17 +182,12 @@ void MainWindow::on_executeButton_clicked()
 
     // 画像読み込み
     QString trainer_path = this->ui->trainingPathLabel->text();
-    vector<Mat> trainer_imgs;
-    readImages(trainer_path, trainer_imgs);
 
     // Bag of featuresでクラスタ中心を求める
-    train(trainer, trainer_imgs);
-
-    // trainer_imgsを開放
-    trainer_imgs.clear();
+    train(trainer, trainer_path);
 
     // clustering
-    qDebug() << "clustering...";
+    qDebug() << "clustering BOW...";
     Mat cluster = trainer.cluster();
 
     // descriptor算出
@@ -204,14 +209,14 @@ void MainWindow::on_executeButton_clicked()
 
     // 算出したdescriptorをk-means
     Mat labels, center_of_clusters;
-    int max_iteration_count = 128;
-    TermCriteria termcrit(static_cast<int>(TermCriteria::MAX_ITER), max_iteration_count, 0.0/* no meaning */);
+    //int max_iteration_count = 128;
+    //TermCriteria termcrit(static_cast<int>(TermCriteria::MAX_ITER), max_iteration_count, 0.0/* no meaning */);
+    TermCriteria termcrit; // default params
     int attempts = 16; // 再配置回数
 
     kmeans(descriptors, KMEANS_CLUSTER_COUNT, labels, termcrit, attempts, KMEANS_PP_CENTERS, center_of_clusters);
 
     cv_for_qt::writeMatToQDebug(labels);
-
 
     QString output_path = this->ui->outputPathLabel->text();
     saveKmeansResult(labels, target_imgs, output_path, KMEANS_CLUSTER_COUNT);
